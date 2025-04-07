@@ -165,6 +165,7 @@ const session = require('express-session');
 const methodOverride = require('method-override');
 const path = require('path');
 const initializePassport = require('./passport-config');
+const db = require('./databases')
 
 
 const db = new sqlite3.Database('./database.db', (err) => {
@@ -179,6 +180,7 @@ initializePassport(passport, db);
 
 
 db.serialize(() => {
+    // Create users table
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -187,11 +189,20 @@ db.serialize(() => {
         role TEXT DEFAULT 'user'
     )`);
 
+    // Create items table 
     db.run(`CREATE TABLE IF NOT EXISTS items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        price REAL NOT NULL
-    )`);
+        price REAL NOT NULL,
+        description TEXT,
+        imagePath TEXT  
+    )`, (err) => {
+        if (err) {
+            console.error("Error creating items table:", err.message);
+        } else {
+            console.log("Items table is ready.");
+        }
+    });
 });
 
 
@@ -241,7 +252,7 @@ app.use(passport.session());
 app.use(methodOverride('_method'));
 
 
-
+//Guest option 
 app.get('/', (req, res) => {
     res.render('index.ejs', { name: req.user ? req.user.name : 'Guest' });
 });
@@ -303,18 +314,39 @@ app.get('/admin', checkAdmin, (req, res) => {
 });
 
 app.post('/admin/add-item', checkAdmin, (req, res) => {
+    const { name, price, description, imagePath } = req.body;
     db.run(
-        `INSERT INTO items (name, price) VALUES (?, ?)`,
-        [req.body.name, req.body.price],
-        function(err) {
-            if (err) {
-                console.error("Error adding item:", err);
-                return res.status(500).send('Error adding item');
-            }
-            res.send('Item added!');
+      `INSERT INTO items (name, price, description) VALUES (?, ?, ?, ?)`,
+      [name, price, description, imagePath],
+      function (err) {
+        if (err) {
+          console.error("Error adding item:", err.message);
+          return res.status(500).send('Error adding item.');
         }
+        res.send('Item added successfully!');
+      }
     );
-});
+  });
+
+  
+  app.delete('/admin/delete-item/:id', checkAdmin, (req, res) => {
+    const { id } = req.params;
+    db.run(
+      `DELETE FROM items WHERE id = ?`,
+      [id],
+      function (err) {
+        if (err) {
+          console.error("Error deleting item:", err.message);
+          return res.status(500).send('Error deleting item.');
+        }
+        if (this.changes === 0) {
+          return res.status(404).send('Item not found.');
+        }
+        res.send('Item deleted successfully!');
+      }
+    );
+  });
+  
 
 
 app.get('*', (req, res) => {
@@ -326,4 +358,42 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
+
+
+// const multer = require('multer');
+// const path = require('path');
+
+// // Configure Multer storage
+// const storage = multer.diskStorage({
+//   destination: function(req, file, cb) {
+//     cb(null, 'public/uploads/'); // Directory for uploaded images
+//   },
+//   filename: function(req, file, cb) {
+//     cb(null, Date.now() + '-' + file.originalname); // Unique filename
+//   }
+// });
+// const upload = multer({ storage });
+
+// // Admin route to add an item with image upload
+// app.post('/admin/add-item', checkAdmin, upload.single('image'), (req, res) => {
+//     // req.body contains the text fields: name, price, description
+//     // req.file contains the uploaded image info
+//     const { name, price, description } = req.body;
+//     const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
+  
+//     db.run(
+//       `INSERT INTO items (name, price, description) VALUES (?, ?, ?)`,
+//       [name, price, description],
+//       function(err) {
+//           if (err) {
+//               console.error("Error adding item:", err.message);
+//               return res.status(500).send('Error adding item.');
+//           }
+//           // Optionally, update the item record with the imagePath if needed,
+//           // or have the table include an image column from the start.
+//           res.send('Item added successfully!');
+//       }
+//     );
+// });
 
