@@ -155,7 +155,7 @@ if (process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
 }
 
-const mysql = require('mysql2/promise'); 
+const sqlite3 = require('sqlite3').verbose();
 const express = require('express');
 const app = express();
 const bcrypt = require('bcrypt');
@@ -167,42 +167,72 @@ const path = require('path');
 const initializePassport = require('./passport-config');
 
 
-initializePassport(
-    passport,
-    email => users.find(user => user.email === email),
-    id => users.find(user => user.id === id)
-);
+const db = new sqlite3.Database('./database.db', (err) => {
+    if (err) {
+        console.error('Could not connect to SQLite database', err);
+        process.exit(1);
+    } else {
+        console.log('Connected to SQLite database.');
+    }
+});
+initializePassport(passport, db);
 
 
-const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'Mydatabase123456',
-    database: process.env.DB_NAME || 'nodemysql',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
+db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT DEFAULT 'user'
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        price REAL NOT NULL
+    )`);
 });
 
 
-(async () => {
-    try {
-        const connection = await pool.getConnection();
-        console.log('Connected to MySQL database!');
-        connection.release();
-    } catch (err) {
-        console.error('Database connection error:', err);
-        process.exit(1);
+
+function getUserByEmail(email, done) {
+    db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, row) => {
+        if (err) return done(err);
+        return done(null, row);
+    });
+}
+
+function getUserById(id, done) {
+    db.get(`SELECT * FROM users WHERE id = ?`, [id], (err, row) => {
+        if (err) return done(err);
+        return done(null, row);
+    });
+}
+
+initializePassport(
+    passport,
+    
+    (email, done) => {
+        getUserByEmail(email, (err, user) => {
+            if (err) return done(err);
+            return done(null, user);
+        });
+    },
+    (id, done) => {
+        getUserById(id, (err, user) => {
+            if (err) return done(err);
+            return done(null, user);
+        });
     }
-})();
+);
 
-
-app.use(express.static(path.join(__dirname, "../frontend/dist")));
-app.use(express.json()); 
+app.use(express.static(path.join(__dirname, "../Frontend/dist")));
+app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(flash());
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false
 }));
@@ -210,7 +240,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use(methodOverride('_method'));
 
-// Routes
+
+
 app.get('/', (req, res) => {
     res.render('index.ejs', { name: req.user ? req.user.name : 'Guest' });
 });
@@ -234,13 +265,18 @@ app.post('/signup', async (req, res) => {
         const hashedPassword = await bcrypt.hash(req.body.password, 10);
         const role = req.body.role || 'user';
 
-        const [result] = await pool.query(
+        db.run(
             `INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)`,
-            [req.body.name, req.body.email, hashedPassword, role]
+            [req.body.name, req.body.email, hashedPassword, role],
+            function(err) {
+                if (err) {
+                    console.error("Error inserting user:", err);
+                    return res.status(500).send("Registration failed");
+                }
+                console.log("User registered with ID:", this.lastID);
+                res.redirect('/login');
+            }
         );
-
-        console.log("User registered:", result);
-        res.redirect('/login');
     } catch (error) {
         console.error("Error:", error);
         res.status(500).send("Registration failed");
@@ -252,38 +288,9 @@ app.delete('/logout', (req, res) => {
     res.redirect('/login');
 });
 
-
-app.get('/admin', checkAdmin, (req, res) => {
-    res.send('Welcome, Admin!');
-});
-
-app.post('/admin/add-item', checkAdmin, async (req, res) => {
-    try {
-        const [result] = await pool.query(
-            `INSERT INTO items (name, price) VALUES (?, ?)`,
-            [req.body.name, req.body.price]
-        );
-        res.send('Item added!');
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Error adding item');
-    }
-});
-
-
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/dist", "index.html"));
-});
-
-
 function checkAuthenticated(req, res, next) {
     if (req.isAuthenticated()) return next();
     res.redirect('/login');
-}
-
-function checkNotAuthenticated(req, res, next) {
-    if (req.isAuthenticated()) return res.redirect('/');
-    next();
 }
 
 function checkAdmin(req, res, next) {
@@ -291,8 +298,32 @@ function checkAdmin(req, res, next) {
     res.redirect('/');
 }
 
+app.get('/admin', checkAdmin, (req, res) => {
+    res.send('Welcome, Admin!');
+});
+
+app.post('/admin/add-item', checkAdmin, (req, res) => {
+    db.run(
+        `INSERT INTO items (name, price) VALUES (?, ?)`,
+        [req.body.name, req.body.price],
+        function(err) {
+            if (err) {
+                console.error("Error adding item:", err);
+                return res.status(500).send('Error adding item');
+            }
+            res.send('Item added!');
+        }
+    );
+});
+
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, "../Frontend/dist", "index.html"));
+});
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+

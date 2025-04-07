@@ -33,7 +33,25 @@
 const bcrypt = require('bcrypt');
 const LocalStrategy = require('passport-local').Strategy;
 
-function initialize(passport, getUserByEmail, getUserById) {
+function initialize(passport, db) {
+  const getUserByEmail = async (email) => {
+    return new Promise((resolve, reject) => {
+      db.get("SELECT * FROM users WHERE email = ?", [email], (err, row) => {
+        if (err) reject(err);
+        resolve(row);
+      });
+    });
+  };
+
+  const getUserById = async (id) => {
+    return new Promise((resolve, reject) => {
+      db.get("SELECT * FROM users WHERE id = ?", [id], (err, row) => {
+        if (err) reject(err);
+        resolve(row);
+      });
+    });
+  };
+
   const authenticateUser = async (email, password, done) => {
     try {
       const user = await getUserByEmail(email);
@@ -65,3 +83,4 @@ function initialize(passport, getUserByEmail, getUserById) {
 }
 
 module.exports = initialize;
+
