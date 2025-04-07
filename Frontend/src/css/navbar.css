@@ -1,0 +1,278 @@
+
+* {
+  font-family: "Marcellus", Roboto, sans-serif;
+}
+
+
+.navbar,
+.navbar-links a {
+  transition: all 0.3s ease-in-out;
+}
+
+.navbar-logo {
+  font-size: 2rem;
+  color: #ff6347; 
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  margin-left: 1rem;
+  transition: transform 0.3s ease-in-out;
+  cursor: pointer;
+}
+.navbar-logo img{
+  width: 6rem;
+  height: auto;
+  /* border-radius: 50%; */
+  /* box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); */
+}
+.navbar-logo:hover {
+  transform: scale(1.1);
+}
+
+.navbar {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  z-index: 1000;
+  background-color: #fff;
+  /* padding: 1rem; */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: fixed;
+  transform: translateY(-10px);
+}
+
+.navbar-links li {
+  color: black;
+  /* font-size: 2rem; */
+}
+
+
+.navbar-links a:hover {
+  color: #f4b803e2;
+  text-decoration: underline;
+}
+
+
+.navbar-links li:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+}
+
+.navbar-logo {
+  color: black;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.navbar-icons {
+  display: flex;
+  gap: 1rem;
+  margin-left: 10rem;
+  margin-right: 1rem;
+}
+
+/* .search-icon {
+  color: black;
+  font-size: small;
+  margin-left: 5rem;
+} */
+.cart-notification {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px; 
+  height: 20px; 
+  background-color: red; 
+  color: white; 
+  border-radius: 50%; 
+  font-size: 12px;
+  font-weight: bold; 
+  margin-left: 5px;
+  margin-bottom: 2px;
+}
+.navbar-links {
+  list-style-type: none;
+  display: flex;
+  gap: 5rem;
+}
+
+.navbar-links li {
+  margin: 0;
+}
+
+.navbar-links a {
+  text-decoration: none;
+  font-size: 1rem;
+  color: black;
+}
+
+.navbar-links a:hover {
+  text-decoration: underline;
+}
+.menu-icon{
+  display: none;
+}
+
+/* Responsive Styles */
+
+
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f0f0f0;
+    height: 50px;
+    animation: fadeIn 0.5s ease-in-out;
+    
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .navbar-logo img {
+    width: 3rem; 
+    transition: transform 0.3s ease-in-out;
+  }
+
+  .navbar-logo img:hover {
+    transform: scale(1.1);
+    animation: pop 0.4s ease-in-out; /* Logo pop effect */
+  }
+
+  @keyframes pop {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1.1);
+    }
+  }
+
+  .menu-icon {
+    display: block; 
+    font-size: 1.5rem; 
+    cursor: pointer; 
+    color: #333; 
+    transition: transform 0.3s ease-in-out;
+  }
+
+  .menu-icon:hover {
+    transform: rotate(180deg); 
+  }
+
+  .navbar-links {
+    display: none; 
+    flex-direction: column;
+    position: absolute;
+    top: 50px;
+    right: 0; 
+    width: 70%;
+    background-color: #ffffff; 
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px; 
+    padding: 0.5rem;
+    z-index: 999;
+    animation: slideDown 0.4s ease-in-out; 
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-20%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .navbar-links.active {
+    display: flex; 
+  }
+
+  .navbar-links li {
+    margin: 0.2rem 0; 
+    text-align: center;
+    animation: fadeInUp 0.5s ease-in-out; 
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .navbar-links a {
+    font-size: 1rem; 
+    font-weight: bold;
+    color: #333; 
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out;
+  }
+
+  .navbar-links a:hover {
+    background-color: #e0e0e0; 
+    color: #000;
+    animation: hoverPulse 0.3s ease-in-out; /* Pulse effect on hover */
+  }
+
+  @keyframes hoverPulse {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  .navbar-icons {
+    display: flex;
+    justify-content: center;
+    gap: 0.3rem;
+    margin-top: 0.3rem;
+    margin-left: 0;
+  }
+
+  .cart-notification {
+    background-color: #888; 
+    color: #fff; 
+    font-size: 10px;
+    width: 15px; 
+    height: 15px;
+    margin-left: 3px;
+    animation: bounce 0.6s infinite alternate; /* Bounce effect for notifications */
+  }
+
+  @keyframes bounce {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(-5px);
+    }
+  }
+}
+
+
+
+
+  
