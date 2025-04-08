@@ -357,31 +357,61 @@ app.post('/admin/add-item', checkAdmin, (req, res) => {
     );
   });
   
-  app.get('/admin', checkAdmin, (req, res) => {
-    res.sendFile(path.join(__dirname, "../Frontend/dist/admin.html"));
-});
 
+app.get('/admin',  (req, res) => {
+    res.sendFile(path.join(__dirname, "../Frontend/dist", "index.html"));
+});
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, "../Frontend/dist", "index.html"));
 });
 
+
+
+
+
 app.get('/admin/users', checkAdmin, (req, res) => {
-    db.all("SELECT * FROM users", [], (err, rows) => {
-        if (err) {
-            console.error("Error retrieving users:", err.message);
-            return res.status(500).send("Error retrieving users");
+    db.all(
+        "SELECT id, name, email, role FROM users",  [], (err, rows) => {
+            if (err) {
+                console.error("User fetch error:", err);
+                return res.status(500).json({ error: 'Failed to fetch users' });
+            }
+            res.json(rows);
         }
-        res.sendFile(path.join(__dirname, "../Frontend/src/pages/admin.html"));
-    });
+    );
 });
 
 
+app.put('/admin/users/:id', checkAdmin, (req, res) => {
+    const { id } = req.params;
+    const { newRole } = req.body;
+
+    
+    if (!['admin', 'user'].includes(newRole)) {
+        return res.status(400).json({ error: 'Invalid role' });
+    }
+
+   
+    db.run(
+        `UPDATE users SET role = ? WHERE id = ?`,
+        [newRole, id],
+        function(err) {
+            if (err) {
+                console.error("Role update error:", err);
+                return res.status(500).json({ error: 'Failed to update role' });
+            }
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+            res.json({ success: true });
+        }
+    );
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
-
 
 
 // const multer = require('multer');
