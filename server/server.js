@@ -165,7 +165,7 @@ const session = require('express-session');
 const methodOverride = require('method-override');
 const path = require('path');
 const initializePassport = require('./passport-config');
-const db = require('./databases')
+
 
 
 const db = new sqlite3.Database('./database.db', (err) => {
@@ -176,7 +176,7 @@ const db = new sqlite3.Database('./database.db', (err) => {
         console.log('Connected to SQLite database.');
     }
 });
-initializePassport(passport, db);
+
 
 
 db.serialize(() => {
@@ -207,36 +207,44 @@ db.serialize(() => {
 
 
 
-function getUserByEmail(email, done) {
-    db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, row) => {
-        if (err) return done(err);
-        return done(null, row);
+function getUserByEmail(email) {
+    return new Promise((resolve, reject) => {
+        db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, row) => {
+            if (err) return reject(err);
+            resolve(row);
+        });
     });
 }
 
-function getUserById(id, done) {
-    db.get(`SELECT * FROM users WHERE id = ?`, [id], (err, row) => {
-        if (err) return done(err);
-        return done(null, row);
+function getUserById(id) {
+    return new Promise((resolve, reject) => {
+        db.get(`SELECT * FROM users WHERE id = ?`, [id], (err, row) => {
+            if (err) return reject(err);
+            resolve(row);
+        });
     });
 }
 
 initializePassport(
     passport,
-    
-    (email, done) => {
-        getUserByEmail(email, (err, user) => {
-            if (err) return done(err);
+    async (email, done) => {
+        try {
+            const user = await getUserByEmail(email);
             return done(null, user);
-        });
+        } catch (err) {
+            return done(err);
+        }
     },
-    (id, done) => {
-        getUserById(id, (err, user) => {
-            if (err) return done(err);
+    async (id, done) => {
+        try {
+            const user = await getUserById(id);
             return done(null, user);
-        });
+        } catch (err) {
+            return done(err);
+        }
     }
-);
+)
+
 
 app.use(express.static(path.join(__dirname, "../Frontend/dist")));
 app.use(express.json());
@@ -252,10 +260,7 @@ app.use(passport.session());
 app.use(methodOverride('_method'));
 
 
-//Guest option 
-app.get('/', (req, res) => {
-    res.render('index.ejs', { name: req.user ? req.user.name : 'Guest' });
-});
+
 
 app.get('/login', (req, res) => {
     res.render('login.ejs');
@@ -295,9 +300,15 @@ app.post('/signup', async (req, res) => {
 });
 
 app.delete('/logout', (req, res) => {
-    req.logout();
-    res.redirect('/login');
+    req.logout(err => {
+        if (err) {
+            console.error("Logout error:", err);
+            return res.status(500).send("Logout failed");
+        }
+        res.redirect('/login');
+    });
 });
+
 
 function checkAuthenticated(req, res, next) {
     if (req.isAuthenticated()) return next();
@@ -305,18 +316,17 @@ function checkAuthenticated(req, res, next) {
 }
 
 function checkAdmin(req, res, next) {
-    if (req.isAuthenticated() && req.user.role === 'admin') return next();
+    if (req.isAuthenticated() && req.user && req.user.role === 'admin') return next();
     res.redirect('/');
 }
 
-app.get('/admin', checkAdmin, (req, res) => {
-    res.send('Welcome, Admin!');
-});
+
+
 
 app.post('/admin/add-item', checkAdmin, (req, res) => {
     const { name, price, description, imagePath } = req.body;
     db.run(
-      `INSERT INTO items (name, price, description) VALUES (?, ?, ?, ?)`,
+      `INSERT INTO items (name, price, description, imagePath) VALUES (?, ?, ?, ?)`,
       [name, price, description, imagePath],
       function (err) {
         if (err) {
@@ -347,11 +357,24 @@ app.post('/admin/add-item', checkAdmin, (req, res) => {
     );
   });
   
-
+  app.get('/admin', checkAdmin, (req, res) => {
+    res.sendFile(path.join(__dirname, "../Frontend/dist/admin.html"));
+});
 
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, "../Frontend/dist", "index.html"));
 });
+
+app.get('/admin/users', checkAdmin, (req, res) => {
+    db.all("SELECT * FROM users", [], (err, rows) => {
+        if (err) {
+            console.error("Error retrieving users:", err.message);
+            return res.status(500).send("Error retrieving users");
+        }
+        res.sendFile(path.join(__dirname, "../Frontend/src/pages/admin.html"));
+    });
+});
+
 
 
 const PORT = process.env.PORT || 3000;
